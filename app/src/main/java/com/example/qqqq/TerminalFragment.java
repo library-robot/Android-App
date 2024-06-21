@@ -547,7 +547,7 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
             bluetoothConnectionAllowed = false;
             currentOperation = OperationType.NONE;
             if (!bookRfidNumbers.isEmpty()) {
-                sendAllLendingRequests(); // 책 대출 요청 전송
+               // sendAllLendingRequests(); // 책 대출 요청 전송
             } else {
                 Toast.makeText(getActivity(), "책 대출에 실패했습니다. 다시 시도해 주세요.", Toast.LENGTH_SHORT).show();
             }
