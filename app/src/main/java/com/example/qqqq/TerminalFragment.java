@@ -21,8 +21,10 @@ import android.view.ViewGroup;
 import android.view.WindowManager;
 import android.webkit.WebChromeClient;
 import android.webkit.WebSettings;
+import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.ListView;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -99,7 +101,7 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
     private OperationType currentOperation = OperationType.NONE;
 
     // UI 요소: 버튼들
-    Button button1, button2, button3, sendBtn, admin;
+    Button button1, button2, button3, admin;
 
     //관리자 모드 비밀번호 세팅
     private static final String ADMIN_PASSWORD = "1234"; // 관리자 비밀번호 설정
@@ -190,18 +192,19 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
         button1 = view.findViewById(R.id.button1);
         button2 = view.findViewById(R.id.button2);
         button3 = view.findViewById(R.id.button3);
-        sendBtn = view.findViewById(R.id.send_btn);
+
         admin = view.findViewById(R.id.btn_admin);
         button1.setOnClickListener(v -> {
             showBookLocation();
             send(location);
         });
-        button2.setOnClickListener(v -> borrowBook());
-        button3.setOnClickListener(v -> authenticateUser());
-        sendBtn.setOnClickListener(v -> sendAllLendingRequests());
+        button2.setOnClickListener(v -> authenticateUser());
+        button3.setOnClickListener(v -> scanBook());
         admin.setOnClickListener(v -> showPasswordDialog());
         return view;
     }
+
+
     private void showPasswordDialog() {
         LayoutInflater inflater = LayoutInflater.from(getContext());
         View view = inflater.inflate(R.layout.dialog_password, null);
@@ -264,7 +267,7 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
 
     private void send(String str) {
         if(connected != Connected.True) {
-            Toast.makeText(getActivity(), "not connected", Toast.LENGTH_SHORT).show();
+          //  Toast.makeText(getActivity(), "not connected", Toast.LENGTH_SHORT).show();
             return;
         }
         try {
@@ -414,54 +417,7 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
         updateReceiveTextView(spn);
     }
 
-    // 수신된 데이터를 텍스트 뷰에 업데이트하는 메서드
-    private void updateReceiveTextView(SpannableStringBuilder spn) {
-        receiveText.append(spn);
-    }
 
-    private void status(String str) {
-        SpannableStringBuilder spn = new SpannableStringBuilder(str + '\n');
-        spn.setSpan(new ForegroundColorSpan(getResources().getColor(R.color.colorStatusText)), 0, spn.length(), Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
-        receiveText.append(spn); // 상태 메시지를 텍스트 뷰에 추가
-    }
-
-    // SerialListener 인터페이스 메서드 구현
-    @Override
-    public void onSerialConnect() {
-        status("connected"); // 연결 성공 상태 표시
-        connected = Connected.True;
-    }
-
-    @Override
-    public void onSerialConnectError(Exception e) {
-        status("connection failed: " + e.getMessage()); // 연결 실패 메시지 표시
-        disconnect(); // 연결 해제
-    }
-
-    @Override
-    public void onSerialRead(byte[] data) {
-        ArrayDeque<byte[]> datas = new ArrayDeque<>();
-        datas.add(data);
-        if (currentOperation == OperationType.AUTHENTICATION) {
-            receiveAuthenticationData(datas); // 데이터 수신 (회원 인증)
-        } else if (currentOperation == OperationType.BORROWING) {
-            receiveBorrowingData(datas); // 데이터 수신 (책 대출)
-        }
-    }
-
-    @Override
-    public void onSerialRead(ArrayDeque<byte[]> datas) {
-        if (currentOperation == OperationType.AUTHENTICATION) {
-            receiveAuthenticationData(datas); // 데이터 수신 (회원 인증)
-        } else if (currentOperation == OperationType.BORROWING) {
-            receiveBorrowingData(datas); // 데이터 수신 (책 대출)
-        }
-    }
-    @Override
-    public void onSerialIoError(Exception e) {
-        status("connection lost: " + e.getMessage()); // 입출력 오류 메시지 표시
-        disconnect(); // 연결 해제
-    }
 
     // 버튼 클릭 시 호출될 메서드들
     private void showBookLocation() {
@@ -532,13 +488,16 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
         }, BLUETOOTH_CONNECTION_DELAY);
     }
 
-    //책 대출
-    private void borrowBook() {
+    //책 스캔
+    private void scanBook() {
         if (userRfidNumber == null) {
             Toast.makeText(getActivity(), "먼저 회원인증을 해주세요", Toast.LENGTH_SHORT).show();
             return;
         }
-
+        // 데이터 초기화
+        bookRfidNumbers.clear();
+        receivedDataList.clear();
+        receivedDataSet.clear();
         currentOperation = OperationType.BORROWING;
         bluetoothConnectionAllowed = true;
         connect();
@@ -546,12 +505,108 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
         new Handler().postDelayed(() -> {
             bluetoothConnectionAllowed = false;
             currentOperation = OperationType.NONE;
-            if (!bookRfidNumbers.isEmpty()) {
-               // sendAllLendingRequests(); // 책 대출 요청 전송
-            } else {
-                Toast.makeText(getActivity(), "책 대출에 실패했습니다. 다시 시도해 주세요.", Toast.LENGTH_SHORT).show();
-            }
             disconnect();
+            Log.d("scanBook", "블루투스 통신 완료, 다이얼로그 표시");
+
+            showReceivedBookListDialog(); // 수신된 책 리스트 다이얼로그 표시
         }, BLUETOOTH_CONNECTION_DELAY);
+    }
+    // 수신된 책 RFID 번호를 리스트로 보여줄 다이얼로그 메서드
+    private void showReceivedBookListDialog() {
+        AlertDialog.Builder builder = new AlertDialog.Builder(getActivity());
+
+        LayoutInflater inflater = getActivity().getLayoutInflater();
+        View dialogView = inflater.inflate(R.layout.dialog_book, null);
+        builder.setView(dialogView);
+
+        ListView listView = dialogView.findViewById(R.id.list_item);
+        Button borrowButton = dialogView.findViewById(R.id.btn_bollow);
+
+        List<BookItem> bookItems = new ArrayList<>();
+        for (String rfid : bookRfidNumbers) {
+            String title;
+            switch (rfid) {
+                case "E200470A6B406821AFCA010D":
+                    title = "나미야 잡화점의 기적";
+                    break;
+                case "E2000017570D01460540DF27":
+                    title = "불편한 편의점2";
+                    break;
+                case "E200470D3DD0682188260113":
+                    title = "사서함 110호의 우편물";
+                    break;
+                default:
+                    title = "알 수 없는 책";
+                    break;
+            }
+            bookItems.add(new BookItem(title, rfid));
+        }
+
+        BookListAdapter adapter = new BookListAdapter(getActivity(), R.layout.booklist, bookItems);
+        listView.setAdapter(adapter);
+
+        builder.setPositiveButton("닫기", (dialog, which) -> dialog.dismiss());
+
+        AlertDialog dialog = builder.create();
+        dialog.show();
+
+        borrowButton.setOnClickListener(v -> {
+            List<String> selectedRfids = adapter.getSelectedRfids();
+            if (selectedRfids.isEmpty()) {
+                Toast.makeText(getActivity(), "대출할 책을 선택해주세요", Toast.LENGTH_SHORT).show();
+            } else {
+                for (String rfid : selectedRfids) {
+                    sendLendingRequest(userRfidNumber, rfid);
+                }
+            }
+        });
+    }
+    // 수신된 데이터를 텍스트 뷰에 업데이트하는 메서드
+    private void updateReceiveTextView(SpannableStringBuilder spn) {
+        receiveText.append(spn);
+    }
+
+    private void status(String str) {
+        SpannableStringBuilder spn = new SpannableStringBuilder(str + '\n');
+        spn.setSpan(new ForegroundColorSpan(getResources().getColor(R.color.colorStatusText)), 0, spn.length(), Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+        receiveText.append(spn); // 상태 메시지를 텍스트 뷰에 추가
+    }
+
+    // SerialListener 인터페이스 메서드 구현
+    @Override
+    public void onSerialConnect() {
+        status("connected"); // 연결 성공 상태 표시
+        connected = Connected.True;
+    }
+
+    @Override
+    public void onSerialConnectError(Exception e) {
+        status("connection failed: " + e.getMessage()); // 연결 실패 메시지 표시
+        disconnect(); // 연결 해제
+    }
+
+    @Override
+    public void onSerialRead(byte[] data) {
+        ArrayDeque<byte[]> datas = new ArrayDeque<>();
+        datas.add(data);
+        if (currentOperation == OperationType.AUTHENTICATION) {
+            receiveAuthenticationData(datas); // 데이터 수신 (회원 인증)
+        } else if (currentOperation == OperationType.BORROWING) {
+            receiveBorrowingData(datas); // 데이터 수신 (책 대출)
+        }
+    }
+
+    @Override
+    public void onSerialRead(ArrayDeque<byte[]> datas) {
+        if (currentOperation == OperationType.AUTHENTICATION) {
+            receiveAuthenticationData(datas); // 데이터 수신 (회원 인증)
+        } else if (currentOperation == OperationType.BORROWING) {
+            receiveBorrowingData(datas); // 데이터 수신 (책 대출)
+        }
+    }
+    @Override
+    public void onSerialIoError(Exception e) {
+        status("connection lost: " + e.getMessage()); // 입출력 오류 메시지 표시
+        disconnect(); // 연결 해제
     }
 }
