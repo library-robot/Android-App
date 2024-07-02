@@ -69,9 +69,6 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
     String location;
     private TextView locationNumberTextView;
 
-    // 텍스트 변화를 감지하는 헥스 워처
-    private TextUtil.HexWatcher hexWatcher;
-
     // 수신된 데이터의 목록
     private List<String> receivedDataList;
     // 중복 체크를 위한 집합
@@ -87,8 +84,6 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
     // 초기 시작 여부
     private boolean initialStart = false;
     private static final long BLUETOOTH_CONNECTION_DELAY = 10000; // 블루투스 연결 지연 시간 (10초)
-
-    private boolean bluetoothEnabled = false;
     private boolean bluetoothConnectionAllowed = false; // 블루투스 통신 허용 여부 플래그
     private boolean isAuthenticating = false; // 사용자 인증 중 여부 플래그
     // 헥스 모드 활성화 여부
@@ -101,7 +96,7 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
     private OperationType currentOperation = OperationType.NONE;
 
     // UI 요소: 버튼들
-    Button button1, button2, button3, admin;
+    Button bookPosition, btn_user, bookScan, admin;
 
     //관리자 모드 비밀번호 세팅
     private static final String ADMIN_PASSWORD = "1234"; // 관리자 비밀번호 설정
@@ -189,17 +184,17 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
         webView.loadUrl(url);
 
         // 버튼 초기화 및 클릭 리스너 설정
-        button1 = view.findViewById(R.id.button1);
-        button2 = view.findViewById(R.id.button2);
-        button3 = view.findViewById(R.id.button3);
+        bookPosition = view.findViewById(R.id.bookPosition);
+        btn_user = view.findViewById(R.id.btn_user);
+        bookScan = view.findViewById(R.id.bookScan);
 
         admin = view.findViewById(R.id.btn_admin);
-        button1.setOnClickListener(v -> {
+        bookPosition.setOnClickListener(v -> {
             showBookLocation();
             send(location);
         });
-        button2.setOnClickListener(v -> authenticateUser());
-        button3.setOnClickListener(v -> scanBook());
+        btn_user.setOnClickListener(v -> authenticateUser());
+        bookScan.setOnClickListener(v -> scanBook());
         admin.setOnClickListener(v -> showPasswordDialog());
         return view;
     }
@@ -289,21 +284,6 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
             service.write(data);
         } catch (Exception e) {
             onSerialIoError(e);
-        }
-    }
-    private void sendAllLendingRequests() {
-        if (userRfidNumber == null) {
-            Toast.makeText(getActivity(), "회원 인증을 완료해주세요", Toast.LENGTH_SHORT).show();
-            return;
-        }
-
-        if (bookRfidNumbers.isEmpty()) {
-            Toast.makeText(getActivity(), "대출할 책이 없습니다", Toast.LENGTH_SHORT).show();
-            return;
-        }
-
-        for (String bookRfidNumber : bookRfidNumbers) {
-            sendLendingRequest(userRfidNumber, bookRfidNumber); // 저장된 책 RFID 개수만큼 서버에 데이터 전송
         }
     }
     //서버로 데이터 전송 메서드
