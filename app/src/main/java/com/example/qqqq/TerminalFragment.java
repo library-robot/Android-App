@@ -204,7 +204,7 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
         return view;
     }
 
-
+//관리자 모드
     private void showPasswordDialog() {
         LayoutInflater inflater = LayoutInflater.from(getContext());
         View view = inflater.inflate(R.layout.dialog_password, null);
@@ -369,7 +369,7 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
                 // 띄어쓰기 제거
                 hexString = hexString.replace(" ", "");
                 // 현재 작업 유형에 따라 데이터 필터링
-                if (currentOperation == OperationType.AUTHENTICATION && hexString.startsWith("B2")) {
+                if (currentOperation == OperationType.AUTHENTICATION ) {
                     if (receivedDataSet.add(hexString)) { // 중복되지 않은 데이터만 추가
                         receivedDataList.add(hexString);
                         userRfidNumber = hexString; // 회원 인증 데이터 저장
@@ -484,6 +484,8 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
                 isAuthenticating = false;
                 currentOperation = OperationType.NONE;
                 disconnect();
+
+
             }
         }, BLUETOOTH_CONNECTION_DELAY);
     }
