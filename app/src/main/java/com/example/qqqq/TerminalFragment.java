@@ -67,7 +67,6 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
     private WebView webView;
     String url = "http://52.79.204.104/";
     String location;
-    private TextView locationNumberTextView;
 
     // 수신된 데이터의 목록
     private List<String> receivedDataList;
@@ -175,7 +174,6 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
         receiveText.setTextColor(getResources().getColor(R.color.colorRecieveText)); // 텍스트 색상 설정
         receiveText.setMovementMethod(ScrollingMovementMethod.getInstance()); // 스크롤 가능하게 설정
 
-        locationNumberTextView = view.findViewById(R.id.callNumberTextView);
         webView = view.findViewById(R.id.webView); // WebView 초기화
         WebSettings webSettings = webView.getSettings();
         webSettings.setJavaScriptEnabled(true); // 자바스크립트 허용
@@ -226,7 +224,7 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
                             Toast.makeText(getActivity(), "관리자 인증이 되었습니다.", Toast.LENGTH_SHORT).show();
                             disconnect();
                         } else {
-                            Toast.makeText(getActivity(), "Bluetooth connection failed", Toast.LENGTH_SHORT).show();
+                            Toast.makeText(getActivity(), "다시 시도해 주세요", Toast.LENGTH_SHORT).show();
                         }
                     }, 3000);
                 } else {
@@ -290,14 +288,12 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
     public void sendLendingRequest(String userRfidNumber, String bookRfidNumber) {
         OkHttpClient client = new OkHttpClient();
         Gson gson = new Gson();
-
         // JSON 객체 생성
         JsonObject jsonObject = new JsonObject();
         jsonObject.addProperty("userRfidNumber", userRfidNumber);
         jsonObject.addProperty("bookRfidNum", bookRfidNumber);
 
         String jsonString = gson.toJson(jsonObject);
-
         // RequestBody 생성
         RequestBody body = RequestBody.create(jsonString, MediaType.get("application/json; charset=utf-8"));
         Log.d("sendLendingRequest", "Request body: " + jsonString);
@@ -307,10 +303,7 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
                 .post(body)
                 .build();
 
-        // 로그 출력
         Log.d("sendLendingRequest", ": " + request);
-
-
         // Request 전송
         client.newCall(request).enqueue(new Callback() {
             @Override
@@ -318,7 +311,6 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
                 e.printStackTrace();
                 getActivity().runOnUiThread(() -> Toast.makeText(getActivity(), "책 대출 실패", Toast.LENGTH_SHORT).show());
             }
-
             @Override
             public void onResponse(Call call, Response response) throws IOException {
                 if (!response.isSuccessful()) {
@@ -404,37 +396,31 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
         String currentUrl = webView.getUrl(); // 현재 WebView의 URL 가져오기
         location = extractCallNumber(currentUrl); // URL에서 호출 번호 추출
         if (location != null) {
-            locationNumberTextView.setText(location); // 호출 번호가 있다면 TextView에 표시
+            Toast.makeText(getActivity(), "책 위치로 이동합니다.", Toast.LENGTH_SHORT).show();
+            bluetoothConnectionAllowed = true;
+            connect();
+            new Handler().postDelayed(() -> {
+                if (connected == Connected.True) {
+                    send(location.toString());
+                    disconnect();
+                } else {
+                    Toast.makeText(getActivity(), "다시 시도해 주세요", Toast.LENGTH_SHORT).show();
+                }
+            }, 3000);
         } else {
-            locationNumberTextView.setText("책 위치가 확인되지 않았습니다."); // 호출 번호가 없다면 해당 내용을 TextView에 표시
+            Toast.makeText(getActivity(), "책 위치가 확인되지 않았습니다.", Toast.LENGTH_SHORT).show();
         }
-        Toast.makeText(getActivity(), "책 위치 표시", Toast.LENGTH_SHORT).show(); // 사용자에게 메시지 표시
-        bluetoothConnectionAllowed = true;
-        connect();
-        // 일정 시간 지연 후 데이터 전송
-        new Handler().postDelayed(() -> {
-            if (connected == Connected.True) {
-                send(locationNumberTextView.getText().toString());
-                disconnect();
-            } else {
-                Toast.makeText(getActivity(), "Bluetooth connection failed", Toast.LENGTH_SHORT).show();
-            }
-        }, 3000);
-
     }
-
     // URL에서 호출 번호 추출하는 메서드
     private String extractCallNumber(String url) {
         String xValue = extractValue(url, "x");
         String yValue = extractValue(url, "y");
-
         if (xValue != null && yValue != null) {
             return xValue + yValue;
         } else {
             return null;
         }
     }
-
     private String extractValue(String url, String param) {
         String pattern = param + "=([^&]*)";
         Pattern r = Pattern.compile(pattern);
