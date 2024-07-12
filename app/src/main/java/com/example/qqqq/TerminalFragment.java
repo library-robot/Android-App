@@ -349,7 +349,7 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
                 // 띄어쓰기 제거
                 hexString = hexString.replace(" ", "");
                 // 현재 작업 유형에 따라 데이터 필터링
-                if (currentOperation == OperationType.AUTHENTICATION ) {
+                if (hexString.length() == 10 && hexString.startsWith("65")) {
                     if (receivedDataSet.add(hexString)) { // 중복되지 않은 데이터만 추가
                         receivedDataList.add(hexString);
                         userRfidNumber = hexString; // 회원 인증 데이터 저장
