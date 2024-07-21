@@ -341,12 +341,15 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
                 // 띄어쓰기 제거
                 hexString = hexString.replace(" ", "");
                 // 현재 작업 유형에 따라 데이터 필터링
-                if (hexString.length() == 10 && hexString.startsWith("65")) {
-                    if (receivedDataSet.add(hexString)) { // 중복되지 않은 데이터만 추가
-                        receivedDataList.add(hexString);
-                        userRfidNumber = hexString; // 회원 인증 데이터 저장
-                        Toast.makeText(getActivity(), "회원인증 되었습니다.", Toast.LENGTH_SHORT).show();
-                        spn.append(hexString).append('\n');
+                if (hexString.length() == 10 ) {
+                    if(hexString.startsWith("65") ||hexString.startsWith("DA")||hexString.startsWith("91"))
+                    {
+                        if (receivedDataSet.add(hexString)) { // 중복되지 않은 데이터만 추가
+                            receivedDataList.add(hexString);
+                            userRfidNumber = hexString; // 회원 인증 데이터 저장
+                            Toast.makeText(getActivity(), "회원인증 되었습니다.", Toast.LENGTH_SHORT).show();
+                            spn.append(hexString).append('\n');
+                        }
                     }
                 }
 
