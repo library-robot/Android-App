@@ -498,9 +498,6 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
             String title;
             switch (rfid) {
                 case "E200470A6B406821AFCA010D":
-                    title = "나미야 잡화점의 기적";
-                    break;
-                case "E2000017570D01460540DF27":
                     title = "불편한 편의점2";
                     break;
                 case "E200470D3DD0682188260113":
